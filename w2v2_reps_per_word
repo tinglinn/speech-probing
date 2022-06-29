@@ -27,12 +27,11 @@ SAMPLE_RATE = 16000
 model.eval()
 
 with h5py.File(args.output_path, 'w') as fout:
-    for index, audio_file in enumerate(open(args.input_path)):
+    for index, audio_file in enumerate(os.scandir(args.input_path)):
         waveform, sr = librosa.load(audio_file, sr=SAMPLE_RATE)
         
         # use file_id to open time stamps (assuming csv file)
         file_id = os.path.basename(audio_file).split(".")[0]
-        # how to get time_stamps file id (.csv)
         time_stamps = os.path.join(args.time_stamp_path, file_id + ".csv")
         
         # get w2v2 features
@@ -47,12 +46,12 @@ with h5py.File(args.output_path, 'w') as fout:
         word_count = 0
         with open(time_stamps) as fd:
             rd = csv.reader(fd, delimiter=",")
-            for row in rd: # one word
+            for row in rd: 
+                text_type = row# one word
                 word_count += 1
-                start_frame = row[0] * (SAMPLE_RATE / MODEL_DOWNSAMPLING) 
-                end_frame = row[1] * (SAMPLE_RATE / MODEL_DOWNSAMPLING)
-                #word = row[2]
-                word_features = np.vstack([np.array(x) for x in hidden_features[start_frame:end_frame]])
+                start_frame = int(float(row[0]) * (SAMPLE_RATE / MODEL_DOWNSAMPLING))
+                end_frame = int(float(row[1]) * (SAMPLE_RATE / MODEL_DOWNSAMPLING))
+                word_features = np.vstack([np.array(x)[:,start_frame:end_frame,:] for x in hidden_features])
                 if args.pool_type == "mean":
                     word_features = np.sum(word_features, axis=1)
                 elif args.pool_type == "max":
@@ -60,11 +59,11 @@ with h5py.File(args.output_path, 'w') as fout:
                 features_list.append(word_features)
 
         
-        key = str(file_id)
+        key = file_id
         try:
-            # should dset key map to a list of features or to a 4d np array?
-            dset = fout.create_dataset(key, (word_count, LAYER_COUNT, hidden_features[-1].shape[1], FEATURE_COUNT))
+            # should dset key map to a list of features or to a 3d np array?
+            dset = fout.create_dataset(key, (word_count, LAYER_COUNT, FEATURE_COUNT))
         except RuntimeError:
             dset = fout[key]
 
-        dset[:,:,:,:] = np.vstack([np.array(x) for x in features_list])
+        dset[:,:,:] = np.stack([np.array(x) for x in features_list])
