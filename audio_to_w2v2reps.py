@@ -31,13 +31,19 @@ model.eval()
 with h5py.File(args.output_path, 'w') as fout:
     # instead of using index, maybe use file id? unsure
     for index, audio_file in enumerate(open(args.input_path)):
-        waveform, sr = librosa.load(audio_file, 16000)
-        
+        waveform, sr = librosa.load(audio_file, sr=16000)
         input_values = tokenizer(waveform, return_tensors = "pt").input_values
-        output_values = model(input_values)
+        with torch.no_grad():
+            output_values = model(input_values)
         hidden_features = output_values[2][1:]
         
-        dset = fout.create_dataset(str(index), (LAYER_COUNT, len(input_values), FEATURE_COUNT)) # ?
+        file_id = os.file.basename(audio_file).split(".")[0]
+        try:
+            # should dset key map to a list of features or to a 4d np array?
+            dset = fout.create_dataset(key, (word_count, LAYER_COUNT, hidden_features[-1].shape[1], FEATURE_COUNT))
+        except RuntimeError:
+            dset = fout[key]
+            
         dset[:,:,:] = np.vstack([np.array(x) for x in hidden_features])
 
 
