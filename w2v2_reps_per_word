@@ -22,17 +22,18 @@ args = argp.parse_args()
 
 LAYER_COUNT = 24
 FEATURE_COUNT = 1024
-
+MODEL_DOWNSAMPLING = 320
+SAMPLE_RATE = 16000
 model.eval()
 
 with h5py.File(args.output_path, 'w') as fout:
     for index, audio_file in enumerate(open(args.input_path)):
-        waveform, sr = librosa.load(audio_file, sr=16000)
+        waveform, sr = librosa.load(audio_file, sr=SAMPLE_RATE)
         
         # use file_id to open time stamps (assuming csv file)
-        file_id = os.file.basename(audio_file).split(".")[0]
+        file_id = os.path.basename(audio_file).split(".")[0]
         # how to get time_stamps file id (.csv)
-        time_stamps = os.join(args.time_stamp_path, file_id + ".csv")
+        time_stamps = os.path.join(args.time_stamp_path, file_id + ".csv")
         
         # get w2v2 features
         input_values = tokenizer(waveform, return_tensors = "pt").input_values
@@ -48,8 +49,8 @@ with h5py.File(args.output_path, 'w') as fout:
             rd = csv.reader(fd, delimiter=",")
             for row in rd: # one word
                 word_count += 1
-                start_frame = row[0] # TODO: do something to get frame from time stamp
-                end_frame = row[1] # TODO: do something to get frame from time stamp
+                start_frame = row[0] * (SAMPLE_RATE / MODEL_DOWNSAMPLING) 
+                end_frame = row[1] * (SAMPLE_RATE / MODEL_DOWNSAMPLING)
                 #word = row[2]
                 word_features = np.vstack([np.array(x) for x in hidden_features[start_frame:end_frame]])
                 if args.pool_type == "mean":
