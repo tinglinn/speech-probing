@@ -48,8 +48,8 @@ with h5py.File(args.output_path, 'w') as fout:
             rd = csv.reader(fd, delimiter=",")
             for row in rd: # one word
                 word_count += 1
-                start_frame = row[0] # do something to get frame 
-                end_frame = row[1]
+                start_frame = row[0] # TODO: do something to get frame from time stamp
+                end_frame = row[1] # TODO: do something to get frame from time stamp
                 #word = row[2]
                 word_features = np.vstack([np.array(x) for x in hidden_features[start_frame:end_frame]])
                 if args.pool_type == "mean":
