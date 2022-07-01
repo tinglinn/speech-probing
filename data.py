@@ -1,7 +1,7 @@
 from collections import defaultdict, Counter, namedtuple
 import os
 import csv
-
+import itertools 
 import librosa
 import torch
 import torch.nn as nn
@@ -35,9 +35,7 @@ class audioDataset(torch.utils.data.Dataset):
         The namedtuple class is constructed to hold all language and annotation
         information for a single sentence or document.
         Args:
-        fieldnames: a list of strings corresponding to the information in each
-            row of the conllx file being read in. (The file should not have
-            explicit column headers though.)
+        fieldnames: a list of strings corresponding to the information in each observation.
         Returns:
         A namedtuple class; each observation in the dataset will be an instance
         of this class.
@@ -103,19 +101,18 @@ class audioDataset(torch.utils.data.Dataset):
         file = open(filepath)
         lines = csv.reader(file, delimiter="\t")
             
-        for line in lines:
+        for line in lines: # a single audio
             file_id, transcript, labels = self.get_info_from_SLUE_line(line, "NER")
             audio_file = os.path.join(audiopath, file_id + ".ogg")
             timestamp_file = os.path.join(timestamp_path, file_id + ".csv")
             
-            # a tuple of (word, audio vector)
             word_audio_vectors = self.get_token_audio_vector(audio_file, timestamp_file)
             
             embeddings = [None for x in range(len(word_audio_vectors))]
 
             labels = self.convert_raw_label_to_list(transcript, labels)
 
-            observation = self.observation_class(word_audio_vectors, labels, embeddings)
+            observation = self.observation_class(file_id, transcripts, word_audio_vectors, labels, embeddings)
             observations.append(observation)
         return observations
     
@@ -131,9 +128,9 @@ class audioDataset(torch.utils.data.Dataset):
             if type == "words":
                 start_frame = line[0]*16000
                 end_frame = line[1]*16000
-                word = line[2]
+                #word = line[2]
                 word_audio = waveform[start_frame:end_frame]
-                word_audios.append((word, word_audio))
+                word_audios.append(word_audio)
         return word_audios
 
     def convert_raw_label_to_list(self, transcript, labels):
@@ -179,11 +176,9 @@ class audioDataset(torch.utils.data.Dataset):
             embedded_observations.append(embedded_observation)
         return embedded_observations
     
-    def generate_token_embeddings_from_hdf5(self, args, observations, filepath, layer_index):
+    def generate_token_embeddings_from_hdf5(self, args, observations, fileid, hdf5path, layer_index):
         '''
         Reads pre-computed embeddings from hdf5-formatted file.
-        Sentences should be given integer keys corresponding to their order
-        in the original file.
         Embeddings should be of the form (word_count, layer_count, feature_count)
         
         Args:
@@ -196,17 +191,16 @@ class audioDataset(torch.utils.data.Dataset):
         Returns:
         A list of numpy matrices; one for each observation.
         Raises:
-        AssertionError: sent_length of embedding was not the length of the
+        AssertionError: word_count of embedding was not the length of the
             corresponding sentence in the dataset.
         '''
-        hf = h5py.File(filepath, 'r') 
-        indices = filter(lambda x: x != 'sentence_to_index', list(hf.keys()))
+        hf = h5py.File(hdf5path, 'r') 
         single_layer_features_list = []
-        for index in sorted([int(x) for x in indices]):
-            observation = observations[index]
-            feature_stack = hf[str(index)]
-            single_layer_features = feature_stack[layer_index]
-            assert single_layer_features.shape[0] == len(observation.sentence)
+        for observation in observations:
+            file_id = observation.file_id
+            feature_stack = hf[file_id]
+            single_layer_features = feature_stack[,layer_index,]
+            assert single_layer_features.shape[0] == len(observation.transcript)
             single_layer_features_list.append(single_layer_features)
         return single_layer_features_list
 
