@@ -199,7 +199,7 @@ class audioDataset(torch.utils.data.Dataset):
         for observation in observations:
             file_id = observation.file_id
             feature_stack = hf[file_id]
-            single_layer_features = feature_stack[,layer_index,]
+            single_layer_features = feature_stack[:,layer_index,:]
             assert single_layer_features.shape[0] == len(observation.transcript)
             single_layer_features_list.append(single_layer_features)
         return single_layer_features_list
