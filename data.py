@@ -11,6 +11,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from torch.nn.utils.rnn import pad_sequence
 
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -279,22 +280,52 @@ class audioDataset(torch.utils.data.Dataset):
 
 class ObservationBatch:
     """
-    Used for custom follate fn for observation iterator. Pads embeddings and IOB tags.
+    Used for custom follate fn for observation iterator. 
+    Pads embeddings with 0, integrizes IOB tags and pads them with -1.
+    Flattens both embeddings and IOB tags so length of embeddings/tags is total word count in batch.
     """
     def __init__(self, data):
-        self.data = [list(obs) for obs in data] 
-        file_ids, transcripts, w_a_vs, labels, IOB_tags, embeddings = map(list, zip(*self.data))
-        
+        """convert into list of lists of format:
+            [[fileid1, transcript1, word_audio_vectors1, ...]
+            [fileid2, ..]]"""
+
+        self.data = [list(obs) for obs in data]
+        file_ids, transcripts, w_a_vs, labels, IOB_tags, embeddings = map(
+            list, zip(*self.data))
+
         # pad embeddings
         embeddings = [torch.tensor(embd) for embd in embeddings]
-        self.embeddings = torch.nn.utils.rnn.pad_sequence(embeddings, batch_first=True)
-        
+        embeddings = pad_sequence(embeddings, batch_first=True)
+        self.embeddings = torch.reshape(
+            embeddings, (-1, embeddings.data.shape[2]))
+
         # pad labels
-        self.labels = list(map(list, zip(*itertools.zip_longest(*labels, fillvalue="-1"))))
-        self.IOB_tags = list(map(list, zip(*itertools.zip_longest(*IOB_tags, fillvalue="-1"))))
+        self.labels = list(
+            map(list, zip(*itertools.zip_longest(*labels, fillvalue="NONE"))))
 
-        assert len(self.IOB_tags[0]) == self.embeddings.shape[1]
+        # pad IOB tags
+        code_dict = self.code_labels()
+        IOB_tags = [torch.tensor(self.integrize_labels(
+            code_dict, tag)) for tag in IOB_tags]
+        IOB_tags = pad_sequence(IOB_tags, batch_first=True, padding_value=-1.0)
+        self.IOB_tags = torch.flatten(IOB_tags)
 
+        assert IOB_tags.shape[0] == embeddings.shape[0]
+
+    def code_labels(self):
+        all_IOB_labels = ["O", "B-PLACE", "I-PLACE", "B-QUANT", "I-QUANT", "B-WHEN", "I-WHEN",
+                          "B-ORG", "I-ORG", "B-NORP", "I-NORP", "B-PERSON", "I-PERSON", "B-LAW", "I-LAW"]
+        codes, _ = pd.factorize(all_IOB_labels)
+        dict = {}
+        for idx, code in enumerate(codes):
+            dict[all_IOB_labels[idx]] = code
+        return dict
+
+    def integrize_labels(self, dict, IOB_tag):
+        tags = []
+        for word_tag in IOB_tag:
+            tags.append(dict[word_tag])
+        return tags
 
 class ObservationIterator(Dataset):
     """ List Container for lists of Observations and labels for them.
@@ -308,6 +339,7 @@ class ObservationIterator(Dataset):
         return len(self.observations)
 
     def __getitem__(self, idx):
-        # i should maybe put everything for loading into get item instead
+        # consider put everything for loading into get item instead
         return self.observations[idx]
-  
+    
+    
