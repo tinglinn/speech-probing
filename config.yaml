@@ -5,6 +5,7 @@ dataset:
      - word_audio_vector
      - embeddings
      - labels
+     - IOB_tags
   audio:
     root: slue-toolkit/data/slue-voxpopuli/
     train_path: fine-tune/
