@@ -7,24 +7,33 @@ dataset:
      - labels
      - IOB_tags
   audio:
-    root: slue-toolkit/data/slue-voxpopuli/
+    root: data/slue-toolkit/data/slue-voxpopuli/
     train_path: fine-tune/
     dev_path: dev/
     test_path: test/
   timestamp:
-    root: slue-toolkit/data/slue-voxpopuli/
+    root: data/slue-toolkit/data/slue-voxpopuli/
     train_path: fine-tune_aligned_csv/
     dev_path: dev_aligned_csv/
-    test_path: test_aligned_csv/
+    #test_path: test_aligned_csv/
   file:
-    root: slue-toolkit/data/slue-voxpopuli/
+    root: data/slue-toolkit/data/slue-voxpopuli/
     train_path: slue-voxpopuli_fine-tune.tsv
     dev_path: slue-voxpopuli_dev.tsv
-    test_path: slue-voxpopuli_test_blind.tsv
+    #test_path: slue-voxpopuli_test_blind.tsv
   embeddings:
-    root: slue-toolkit/data/slue-voxpopuli/
-    train_path: fine-tune.hdf5
-    dev_path: dev.hdf5
-    test_path: test.hdf5
+    root: data/slue-toolkit/data/slue-voxpopuli/
+    train_path: fine-tune_avg_word.hdf5
+    dev_path: dev_avg_word.hdf5
+    #test_path: test.hdf5
   batch_size: 5
-  layer_index: 0
+model:
+  model_layer: 14
+reporting: 
+  root: results/
+probe:
+  params_path: probe_params/
+  input_size: 1024
+  output_size: 15
+probe_training:
+  epochs: 30
