@@ -17,15 +17,16 @@ import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 
-class audioDataset(torch.utils.data.Dataset):
+class AudioDataset(torch.utils.data.Dataset):
     def __init__(self, args):
         self.args = args
         self.batch_size = args['dataset']['batch_size']
         self.observation_class = self.get_observation_class(self.args['dataset']['observation_fieldnames'])
-        self.train_obs, self.dev_obs, self.test_obs = self.read_from_disk()
+        self.train_obs, self.dev_obs = self.read_from_disk()  # commented out self.test_obs
         self.train_dataset = ObservationIterator(self.train_obs)
         self.dev_dataset = ObservationIterator(self.dev_obs)
-        self.test_dataset = ObservationIterator(self.test_obs)
+        print("Length of dev dataset", len(self.dev_dataset))
+        #self.test_dataset = ObservationIterator(self.test_obs)
         self.observation_class = self.get_observation_class(self.args['dataset']['observation_fieldnames'])
     
     def get_observation_class(self, fieldnames):
@@ -53,37 +54,37 @@ class audioDataset(torch.utils.data.Dataset):
             self.args['dataset']['file']['train_path'])
         dev_file_path = os.path.join(self.args['dataset']['file']['root'],
             self.args['dataset']['file']['dev_path'])
-        test_file_path = os.path.join(self.args['dataset']['file']['root'],
-            self.args['dataset']['file']['test_path'])
+        #test_file_path = os.path.join(self.args['dataset']['file']['root'],
+            #self.args['dataset']['file']['test_path'])
         
         train_timestamp_path = os.path.join(self.args['dataset']['timestamp']['root'],
             self.args['dataset']['timestamp']['train_path'])
         dev_timestamp_path = os.path.join(self.args['dataset']['timestamp']['root'],
             self.args['dataset']['timestamp']['dev_path'])
-        test_timestamp_path = os.path.join(self.args['dataset']['timestamp']['root'],
-            self.args['dataset']['timestamp']['test_path'])
+        #test_timestamp_path = os.path.join(self.args['dataset']['timestamp']['root'],
+            #self.args['dataset']['timestamp']['test_path'])
 
         train_audio_path = os.path.join(self.args['dataset']['audio']['root'],
             self.args['dataset']['audio']['train_path'])
         dev_audio_path = os.path.join(self.args['dataset']['audio']['root'],
             self.args['dataset']['audio']['dev_path'])
-        test_audio_path = os.path.join(self.args['dataset']['audio']['root'],
-            self.args['dataset']['audio']['test_path'])
+        #test_audio_path = os.path.join(self.args['dataset']['audio']['root'],
+            #self.args['dataset']['audio']['test_path'])
         
         train_observations = self.generate_observations_from_dataset(train_file_path, train_timestamp_path, train_audio_path)
         dev_observations = self.generate_observations_from_dataset(dev_file_path, dev_timestamp_path, dev_audio_path)
-        test_observations = self.generate_observations_from_dataset(test_file_path, test_timestamp_path, test_audio_path)
+        #test_observations = self.generate_observations_from_dataset(test_file_path, test_timestamp_path, test_audio_path)
 
         train_embeddings_path = os.path.join(self.args['dataset']['embeddings']['root'],
             self.args['dataset']['embeddings']['train_path'])
         dev_embeddings_path = os.path.join(self.args['dataset']['embeddings']['root'],
             self.args['dataset']['embeddings']['dev_path'])
-        test_embeddings_path = os.path.join(self.args['dataset']['embeddings']['root'],
-            self.args['dataset']['embeddings']['test_path'])
+        #test_embeddings_path = os.path.join(self.args['dataset']['embeddings']['root'],
+            #self.args['dataset']['embeddings']['test_path'])
         train_observations = self.optionally_add_embeddings(train_observations, train_embeddings_path)
         dev_observations = self.optionally_add_embeddings(dev_observations, dev_embeddings_path)
-        test_observations = self.optionally_add_embeddings(test_observations, test_embeddings_path)
-        return train_observations, dev_observations, test_observations
+        #test_observations = self.optionally_add_embeddings(test_observations, test_embeddings_path)
+        return train_observations, dev_observations#, test_observations
 
     def generate_observations_from_dataset(self, filepath, timestamp_path, audiopath):
         """
@@ -95,7 +96,7 @@ class audioDataset(torch.utils.data.Dataset):
         observations = []
         
         file = open(filepath)
-        lines = csv.reader(file, delimiter="\t")
+        lines = list(csv.reader(file, delimiter="\t"))
             
         for line in lines[1:]: # a single audio
             file_id, transcript, labels = self.get_info_from_SLUE_line(line, "NER")
@@ -122,8 +123,8 @@ class audioDataset(torch.utils.data.Dataset):
         waveform, sr = librosa.load(audio, sr=16000)
         timestamps = csv.reader(open(timestamp))
         for line in timestamps:
-            type = line[3]
             # word = line[2]
+            type = line[3]
             if type == "words":
                 start_frame = int(float(line[0])*16000)
                 end_frame = int(float(line[1])*16000)
@@ -171,17 +172,18 @@ class audioDataset(torch.utils.data.Dataset):
     
             if label == "GPE" or label == "LOC":
                 IOB.append(prefix + "PLACE")
-            if label == "CARDINAL" or label == "MONEY" or label == "ORDINAL" or label == "PERCENT" or label == "QUANTITY":
+            elif label == "CARDINAL" or label == "MONEY" or label == "ORDINAL" or label == "PERCENT" or label == "QUANTITY":
                 IOB.append(prefix + "QUANT")
-            if label == "DATE" or label == "TIME":
+            elif label == "DATE" or label == "TIME":
                 IOB.append(prefix + "WHEN")
-            if label == "ORG" or label == "NORP" or label == "PERSON" or label == "LAW":
+            elif label == "ORG" or label == "NORP" or label == "PERSON" or label == "LAW":
                 IOB.append(prefix + label)
-            if label == "":
+            else:  # disgard rare labels
                 IOB.append("O")
             
             prefix = "I-"
             last_label = label
+
         assert len(labels) == len(IOB)
         return IOB
     
@@ -189,8 +191,8 @@ class audioDataset(torch.utils.data.Dataset):
         """Adds pre-computed w2v2 embeddings from disk to Observations."""
         layer_index = self.args['model']['model_layer']
         print('Loading W2V2 Pretrained Embeddings from {}; using layer {}'.format(pretrained_embeddings_path, layer_index))
-        embeddings = self.generate_token_embeddings_from_hdf5(observations, pretrained_embeddings_path, layer_index)
-        observations = self.add_embeddings_to_observations(observations, embeddings)
+        embeddings, correct_obs = self.generate_token_embeddings_from_hdf5(observations, pretrained_embeddings_path, layer_index)
+        observations = self.add_embeddings_to_observations(correct_obs, embeddings)
         return observations
     
     def add_embeddings_to_observations(self, observations, embeddings):
@@ -227,13 +229,17 @@ class audioDataset(torch.utils.data.Dataset):
         '''
         hf = h5py.File(filepath, 'r') 
         single_layer_features_list = []
+        correct_obs = []
         for observation in observations:
             file_id = observation.file_id
             feature_stack = hf[file_id]
             single_layer_features = feature_stack[:,layer_index,:]
-            assert single_layer_features.shape[0] == len(observation.transcript)
+            if single_layer_features.shape[0] != len(observation.transcript):
+                continue
+            correct_obs.append(observation)
             single_layer_features_list.append(single_layer_features)
-        return single_layer_features_list
+        assert len(single_layer_features_list) == len(correct_obs)
+        return single_layer_features_list, correct_obs
 
     def get_info_from_SLUE_line(self, line, task):
         """
@@ -276,6 +282,9 @@ class audioDataset(torch.utils.data.Dataset):
     
     def collate_wrapper(self, batch):
         return ObservationBatch(batch).embeddings, ObservationBatch(batch).IOB_tags
+
+    def tags(self):
+        return ["PLACE", "QUANT", "WHEN", "ORG", "NORP", "PERSON", "LAW"]
 
 
 class ObservationBatch:
@@ -327,6 +336,7 @@ class ObservationBatch:
             tags.append(dict[word_tag])
         return tags
 
+
 class ObservationIterator(Dataset):
     """ List Container for lists of Observations and labels for them.
     Used as the iterator for a PyTorch dataloader.
@@ -341,5 +351,4 @@ class ObservationIterator(Dataset):
     def __getitem__(self, idx):
         # consider put everything for loading into get item instead
         return self.observations[idx]
-    
-    
+
