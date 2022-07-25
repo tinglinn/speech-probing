@@ -302,22 +302,15 @@ class ObservationBatch:
         file_ids, transcripts, w_a_vs, labels, IOB_tags, embeddings = map(
             list, zip(*self.data))
 
-        # pad embeddings
         embeddings = [torch.tensor(embd) for embd in embeddings]
-        embeddings = pad_sequence(embeddings, batch_first=True)
-        self.embeddings = torch.reshape(
-            embeddings, (-1, embeddings.data.shape[2]))
+        self.embeddings = torch.cat(embeddings)
 
-        # pad labels
-        self.labels = list(
-            map(list, zip(*itertools.zip_longest(*labels, fillvalue="NONE"))))
+        self.labels = labels
 
-        # pad IOB tags
         code_dict = self.code_labels()
         IOB_tags = [torch.tensor(self.integrize_labels(
             code_dict, tag)) for tag in IOB_tags]
-        IOB_tags = pad_sequence(IOB_tags, batch_first=True, padding_value=-1.0)
-        self.IOB_tags = torch.flatten(IOB_tags)
+        self.IOB_tags = torch.cat(IOB_tags)
 
         assert IOB_tags.shape[0] == embeddings.shape[0]
 
