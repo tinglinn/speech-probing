@@ -290,7 +290,6 @@ class AudioDataset(torch.utils.data.Dataset):
 class ObservationBatch:
     """
     Used for custom follate fn for observation iterator. 
-    Pads embeddings with 0, integrizes IOB tags and pads them with -1.
     Flattens both embeddings and IOB tags so length of embeddings/tags is total word count in batch.
     """
     def __init__(self, data):
@@ -302,33 +301,46 @@ class ObservationBatch:
         file_ids, transcripts, w_a_vs, labels, IOB_tags, embeddings = map(
             list, zip(*self.data))
 
-        embeddings = [torch.tensor(embd) for embd in embeddings]
-        self.embeddings = torch.cat(embeddings)
+        # Try implementing upsampling/downsampling
+        # IOB_tags = [torch.tensor(self.integrize_labels(tag)) for tag in IOB_tags]
+        # self.IOB_tags = torch.cat(IOB_tags)
+
+        # embeddings = [torch.tensor(embd) for embd in embeddings]
+        # self.embeddings = torch.cat(embeddings)
+
+        # downsample O-words to 20%
+        import random
+        sampled_IOB_tags = []
+        sampled_embeddings = []
+        all_IOB_labels = ["O", "B-PLACE", "I-PLACE", "B-QUANT", "I-QUANT", "B-WHEN", "I-WHEN",
+                          "B-ORG", "I-ORG", "B-NORP", "I-NORP", "B-PERSON", "I-PERSON", "B-LAW", "I-LAW"]
+        for audio_IOB_tag, audio_embedding in zip(IOB_tags, embeddings): # one single audio
+            int_tags = []
+            embds = []
+            for word_tag, word_embd in zip(audio_IOB_tag, audio_embedding):  # single word
+                if word_tag == "O":
+                    if random.random() < 0.2:
+                        int_tags.append(all_IOB_labels.index(word_tag))
+                        embds.append(word_embd)
+                else:
+                    int_tags.append(all_IOB_labels.index(word_tag))
+                    embds.append(word_embd)
+            sampled_IOB_tags.append(int_tags)
+            sampled_embeddings.append(embds)
+        self.IOB_tags = torch.cat(sampled_IOB_tags)
+        self.embeddings = torch.cat(sampled_embeddings)
 
         self.labels = labels
 
-        code_dict = self.code_labels()
-        IOB_tags = [torch.tensor(self.integrize_labels(
-            code_dict, tag)) for tag in IOB_tags]
-        self.IOB_tags = torch.cat(IOB_tags)
-
         assert IOB_tags.shape[0] == embeddings.shape[0]
 
-    def code_labels(self):
+    def integrize_labels(self, IOB_tag):
         all_IOB_labels = ["O", "B-PLACE", "I-PLACE", "B-QUANT", "I-QUANT", "B-WHEN", "I-WHEN",
                           "B-ORG", "I-ORG", "B-NORP", "I-NORP", "B-PERSON", "I-PERSON", "B-LAW", "I-LAW"]
-        codes, _ = pd.factorize(all_IOB_labels)
-        dict = {}
-        for idx, code in enumerate(codes):
-            dict[all_IOB_labels[idx]] = code
-        return dict
-
-    def integrize_labels(self, dict, IOB_tag):
         tags = []
         for word_tag in IOB_tag:
-            tags.append(dict[word_tag])
+            tags.append(all_IOB_labels.index(word_tag))
         return tags
-
 
 class ObservationIterator(Dataset):
     """ List Container for lists of Observations and labels for them.

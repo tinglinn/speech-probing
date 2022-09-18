@@ -1,0 +1,22 @@
+dataset:
+  observation_fieldnames:
+     - file_id
+     - transcript
+     - embeddings
+     - labels
+  file:
+    root: 
+    train_path: train-clean-100.txt
+    dev_path: dev-clean.txt
+  batch_size: 16
+model:
+  model_layer: 14
+reporting: 
+  root: results/
+probe:
+  params_path: probe_params/
+  input_size: 1024
+  output_size: 17
+probe_training:
+  epochs: 30
+task: upos

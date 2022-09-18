@@ -53,9 +53,11 @@ with h5py.File(args.output_path, 'w') as fout:
                 end_frame = int(float(row[1]) * (SAMPLE_RATE / MODEL_DOWNSAMPLING))
                 word_features = np.vstack([np.array(x)[:,start_frame:end_frame,:] for x in hidden_features])
                 if args.pool_type == "mean":
-                    word_features = np.sum(word_features, axis=1)
+                    word_features = np.mean(word_features, axis=1)
                 elif args.pool_type == "max":
                     word_features = np.max(np.array(word_features), axis=1)
+                elif args.pool_type == "first":
+                    word_features = word_features[:,0,:]
                 features_list.append(word_features)
 
         

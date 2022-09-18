@@ -10,7 +10,7 @@ from argparse import ArgumentParser
 import data
 import probe
 from reporter import Evaluator
-import regimen
+import regimen as regimen
 
 def run_train_probe(args, probe, dataset, loss, regimen):
     """Trains a structural probe according to args.
@@ -94,14 +94,11 @@ def execute_experiment(args, train_probe, report_results):
         train_probe: Boolean whether to train the probe
         report_results: Boolean whether to report results
     """
-    class_weights = [3.5 for i in range(15)]  # set class weights -> what works better? need to find out
-    class_weights[0] = 1.
-    class_weights = torch.tensor(class_weights)
     expt_dataset = data.AudioDataset(args)
     print('Loaded dataset')
     expt_probe = probe.LinearProbe(args)  
     expt_regimen = regimen.ProbeRegimen(args)
-    expt_loss = nn.CrossEntropyLoss(weight=class_weights, ignore_index=-1)
+    expt_loss = nn.CrossEntropyLoss()
 
     if train_probe:
         print('Training probe...')
