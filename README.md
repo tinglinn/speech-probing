@@ -12,4 +12,4 @@ To run an experiment, enter the command ```python run_experiment.py config.yaml`
 
 # cross-lingual probing
 
-To run a cross-lingual experiment, enter the command ```python run_cl_experiment.py config.yaml```. The cross-lingual probing set-up is specified in the folder. It trains a linear probe on one language and evaluates on another. This measures the amount of cross-lingual transfer present in the multilingual audio transformer.
+To run a cross-lingual experiment, enter the command ```python run_cl_experiment.py config_cl.yaml```. The cross-lingual probing set-up is specified in the folder. It trains a linear probe on one language and evaluates on another. This measures the amount of cross-lingual transfer present in the multilingual audio transformer.
