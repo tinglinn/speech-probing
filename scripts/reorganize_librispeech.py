@@ -1,3 +1,7 @@
+"""
+This is a script that reorganizes librispeech to the corpus format required by the Montreal Forced Aligner.
+"""
+
 import argparse
 import os
 import subprocess
