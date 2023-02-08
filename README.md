@@ -1,6 +1,6 @@
 # speech-probing
 
-This repository is a code base for probing audio transformers, specifically Wav2vec 2.0, for linguistic understanding. 
+This repository is a code base for probing audio transformers, specifically Wav2vec 2.0, for linguistic understanding. We use two probing tasks: 1) POS tagging, and 2) named entity recognition. 
 
 # set-up
 
